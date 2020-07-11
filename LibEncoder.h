@@ -7,7 +7,10 @@ typedef void FUNC();
 
 class LibEncoder {
 public:
-    LibEncoder( int8_t pin_a, int8_t pin_b,FUNC *ptr) : PinA ( pin_a), PinB( pin_b ) {
+    LibEncoder( int8_t pin_a, int8_t pin_b, int8_t pin_sw,FUNC *ptr) : PinA ( pin_a), PinB( pin_b ) {
+        PinA = pin_a; //clk
+        PinB = pin_b; //dt
+        PinSW= pin_sw; //switch
         // Rotary pulses are INPUTs
         pinMode(PinA, INPUT);
         pinMode(PinB, INPUT);
@@ -30,14 +33,16 @@ public:
       if (interruptTime - lastInterruptTime > 5) {
         if (digitalRead(PinB) == LOW)
         {
-          virtualPosition-- ; // Could be -5 or -10
+          virtualPosition-=increment ; 
         }
         else {
-          virtualPosition++ ; // Could be +5 or +10
+          virtualPosition+=increment ;
         }
     
         // Restrict value from 0 to +100
-        //virtualPosition = min(100, max(0, virtualPosition));
+        if( topRange != 0 ){
+          virtualPosition = min(topRange, max(0, virtualPosition));
+        }
     
     
       }
@@ -49,7 +54,6 @@ public:
     int getSwitch(){  
         // Is someone pressing the rotary switch?
         if ((!digitalRead(PinSW))) {
-          virtualPosition = 50;
           while (!digitalRead(PinSW))
             delay(10);
             //Serial.println("Reset");
@@ -65,33 +69,42 @@ public:
     }
     int getPosition(){
         // If the current rotary switch position has changed then update everything
-        if (virtualPosition != lastCount) {
-        
-          // Write out to serial monitor the value and direction
-         // Serial.print(virtualPosition > lastCount ? "Up  :" : "Down:");
-         // Serial.println(virtualPosition);
-        
+        if (virtualPosition != lastCount) {        
           // Keep track of this new value
-          lastCount = virtualPosition ;
+          lastCount = virtualPosition;
         }
         return virtualPosition;
     }
+
+    void setTopRange( int top_range){
+      topRange = top_range;
+    }
+
+    void setIncrement( int increment){
+      this->increment = increment;
+    }
+
   private:
     // Used for generating interrupts using CLK signal
-    int PinA = 2;
+    int PinA ;
     
     // Used for reading DT signal
-    int PinB = 3;
+    int PinB ;
     
     // Used for the push button switch
-    int PinSW = 8;
+    int PinSW ;
     
     // Keep track of last rotary value
-    int lastCount = 50;
+    int lastCount = 0;
     
     // Updated by the ISR (Interrupt Service Routine)
-    volatile int virtualPosition = 50;
+    volatile int virtualPosition = 0;
 
+    // Value to restrict the range
+    int topRange = 0; // a zero value means no one restrict.
+
+    // value to be add to virtualPosition
+    int increment = 1;
 };
 
 
